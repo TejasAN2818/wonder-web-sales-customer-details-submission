@@ -1,6 +1,9 @@
 import { useState } from 'react'
 
-const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || ''
+
+
+const GOOGLE_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbw_ZeSVE0eGkbZSkQ16Caq98bVJhtsg0g9UOVA4wVxKN5pDhxvJh6kNJABbNWeFqUrH/exec'
 
 function App() {
   const [form, setForm] = useState({
