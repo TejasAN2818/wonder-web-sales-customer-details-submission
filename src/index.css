@@ -44,3 +44,49 @@
 .animate-checkPop {
   animation: checkPop 0.35s ease-out;
 }
+
+@keyframes slideInLeft {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+ 0% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shrink {
+  0% {
+    width: 100%;
+  }
+
+  100% {
+    width: 0%;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.45s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.45s ease-out forwards;
+}
+
+.animate-shrink {
+  animation: shrink 4.5s linear forwards;
+}
