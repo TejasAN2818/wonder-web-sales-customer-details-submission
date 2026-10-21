@@ -1,784 +1,554 @@
+
 import { useEffect, useState } from 'react'
 
 const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbzkSNnG_N7AdySk1U22EvYRCO2fjTBLwEuJF8XNbJPfu3LxpstfL3LmLevGPW9k8Yhy/exec'
+  'https://script.google.com/macros/s/AKfycbwkHR7GBmBripT5RUGAl4_he1AiKxM9qpCi23zfco1esnIEKqkMU1feWXQOAr8E79Vllg/exec'
 
-// =====================================================
-// LOCAL STORAGE KEYS
-// =====================================================
+const USER_NAME_KEY = 'creator_details_user_name'
+const SUBMISSION_COUNT_KEY = 'creator_details_submission_count'
 
-const USER_NAME_KEY = 'hr_submission_user_name'
-const SUBMISSION_COUNT_KEY = 'hr_submission_count'
+const initialForm = {
+  instagramLink: '',
+  creatorUsername: '',
+  phone: '',
+  description: '',
+}
 
 function App() {
-  // =====================================================
-  // USER / PROFILE
-  // =====================================================
-
   const [userName, setUserName] = useState('')
   const [nameInput, setNameInput] = useState('')
-
   const [showNamePopup, setShowNamePopup] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-
-  // =====================================================
-  // COUNT
-  // =====================================================
-
   const [submissionCount, setSubmissionCount] = useState(0)
 
-  // =====================================================
-  // FORM
-  // =====================================================
-
-  const [form, setForm] = useState({
-    number: '',
-    hrName: '',
-    description: '',
-  })
-
-  // =====================================================
-  // SUBMISSION STATES
-  // =====================================================
-
+  const [form, setForm] = useState(initialForm)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [showPopup, setShowPopup] = useState(false)
-
-  // =====================================================
-  // LOAD SAVED DATA
-  // =====================================================
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('info')
 
   useEffect(() => {
     const savedName = localStorage.getItem(USER_NAME_KEY)
     const savedCount = localStorage.getItem(SUBMISSION_COUNT_KEY)
 
-    if (savedName) {
+    if (savedName !== null) {
       setUserName(savedName)
     } else {
       setShowNamePopup(true)
     }
 
-    if (savedCount) {
-      setSubmissionCount(Number(savedCount))
+    if (savedCount !== null) {
+      setSubmissionCount(Number(savedCount) || 0)
     }
   }, [])
-
-  // =====================================================
-  // FORM CHANGE
-  // =====================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target
 
-    setForm((prev) => ({
-      ...prev,
+    setForm((previous) => ({
+      ...previous,
       [name]: value,
     }))
   }
 
-  // =====================================================
-  // SAVE NAME - FIRST TIME
-  // =====================================================
-
+  // Name is optional. Continue even when the name is blank.
   const saveUserName = () => {
-    const trimmedName = nameInput.trim()
+    const name = nameInput.trim()
 
-    if (!trimmedName) {
-      return
-    }
-
-    localStorage.setItem(USER_NAME_KEY, trimmedName)
-
-    setUserName(trimmedName)
+    localStorage.setItem(USER_NAME_KEY, name)
+    setUserName(name)
     setNameInput('')
     setShowNamePopup(false)
   }
 
-  // =====================================================
-  // CHANGE NAME FROM PROFILE
-  // =====================================================
-
   const changeUserName = () => {
-    const trimmedName = nameInput.trim()
+    const name = nameInput.trim()
 
-    if (!trimmedName) {
-      return
-    }
-
-    // Only change the user name.
-    // COUNT IS NOT TOUCHED.
-    localStorage.setItem(USER_NAME_KEY, trimmedName)
-
-    setUserName(trimmedName)
+    localStorage.setItem(USER_NAME_KEY, name)
+    setUserName(name)
     setNameInput('')
     setShowProfile(false)
   }
 
-  // =====================================================
-  // SUBMIT FORM
-  // =====================================================
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  const handleSubmit = (e) => {
-  e.preventDefault()
+    if (submitting) return
 
-  const number = form.number.trim()
-  const hrName = form.hrName.trim()
-  const description = form.description.trim()
+    if (
+      !GOOGLE_SCRIPT_URL ||
+      GOOGLE_SCRIPT_URL.includes('PASTE_YOUR_NEW')
+    ) {
+      setMessageType('error')
+      setMessage('Please add your Google Apps Script URL in App.jsx.')
+      return
+    }
 
-  if (!userName) return
-  if (!number) return
-  if (submitting) return
+    setSubmitting(true)
+    setSubmitted(false)
+    setMessage('')
+    setMessageType('info')
 
-  // ===================================================
-  // COUNT
-  // ===================================================
-
-  const newCount = submissionCount + 1
-
-  localStorage.setItem(
-    SUBMISSION_COUNT_KEY,
-    String(newCount)
-  )
-
-  setSubmissionCount(newCount)
-
-  // ===================================================
-  // DATA TO GOOGLE SHEETS
-  // ===================================================
-
-  const body = new URLSearchParams({
-    number: number,
-    hrName: hrName,
-    description: description,
-    filledBy: userName,
-  })
-
-  setSubmitting(true)
-  setSubmitted(false)
-
-  // ===================================================
-  // SEND REQUEST
-  // ===================================================
-
-  fetch(GOOGLE_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: {
-      'Content-Type':
-        'application/x-www-form-urlencoded;charset=UTF-8',
-    },
-    body: body.toString(),
-  }).catch(() => {
-    // Request failed
-  })
-
-  // ===================================================
-  // SUCCESS UI
-  // ===================================================
-
-  setTimeout(() => {
-    setSubmitting(false)
-    setSubmitted(true)
-    setShowPopup(true)
-
-    setForm({
-      number: '',
-      hrName: '',
-      description: '',
+    const body = new URLSearchParams({
+      instagramLink: form.instagramLink.trim(),
+      creatorUsername: form.creatorUsername.trim(),
+      phone: form.phone.trim(),
+      description: form.description.trim(),
+      filledBy: userName,
     })
 
-    setTimeout(() => {
-      setSubmitted(false)
-    }, 1500)
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type':
+            'application/x-www-form-urlencoded;charset=UTF-8',
+        },
+        body: body.toString(),
+      })
 
-    setTimeout(() => {
-      setShowPopup(false)
-    }, 4500)
-  }, 1000)
-}
+      // no-cors does not allow the browser to inspect the server response.
+      // This indicates the request was sent, not confirmed sheet storage.
+      const newCount = submissionCount + 1
 
-  // =====================================================
-  // SUCCESS MESSAGE
-  // =====================================================
+      setSubmissionCount(newCount)
+      localStorage.setItem(
+        SUBMISSION_COUNT_KEY,
+        String(newCount)
+      )
 
- const getSuccessMessage = () => {
-  return submissionCount === 1
-    ? `You have filled 1 number`
-    : `You have filled ${submissionCount} numbers`
-}
+      setSubmitted(true)
+      setMessageType('success')
+      setMessage(
+        'Request sent. Please verify the new entry in Google Sheets.'
+      )
 
-  // =====================================================
-  // UI
-  // =====================================================
+      setForm({ ...initialForm })
+
+      window.setTimeout(() => {
+        setSubmitted(false)
+      }, 2500)
+    } catch (error) {
+      setMessageType('error')
+      setMessage(
+        'Unable to send the request. Please check your internet connection and Apps Script deployment.'
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const inputClass =
+    'w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-100'
 
   return (
-    <main className="min-h-screen bg-pink-50">
-
-      {/* ================================================= */}
+    <main className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-white text-slate-800">
       {/* HEADER */}
-      {/* ================================================= */}
+      <header className="sticky top-0 z-40 border-b border-amber-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-yellow-400 text-xl shadow-md shadow-yellow-200">
+              ✦
+            </div>
 
-      <header className="relative w-full bg-gradient-to-r from-pink-500 to-rose-400 px-5 py-4 text-white shadow-md">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-extrabold tracking-tight sm:text-xl">
+                Job Search
+                <span className="text-amber-600">
+                  {' '}Creator Details
+                </span>
+              </h1>
+              <p className="text-xs text-slate-500 sm:text-sm">
+                Creator information management
+              </p>
+            </div>
+          </div>
 
-        <div className="mx-auto max-w-6xl text-center">
-
-          <h1 className="text-xl font-bold sm:text-2xl">
-            HR Number Submission
-          </h1>
-
-          <p className="mt-0.5 text-xs text-pink-100 sm:text-sm">
-            Submit HR contact information
-          </p>
-
-        </div>
-
-        {/* ================================================= */}
-        {/* PROFILE BUTTON */}
-        {/* ================================================= */}
-
-        {userName && (
           <button
             type="button"
             onClick={() => {
               setNameInput(userName)
               setShowProfile(true)
             }}
-            className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/80 backdrop-blur-sm transition hover:bg-white/30"
-            title="Profile"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-lg transition hover:bg-yellow-100 focus:outline-none focus:ring-4 focus:ring-amber-100"
+            title="Open profile"
+            aria-label="Open profile"
           >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-              />
-
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 20.25a8.25 8.25 0 0115 0"
-              />
-            </svg>
+            👤
           </button>
-        )}
-
+        </div>
       </header>
 
-
-      {/* ================================================= */}
-      {/* FIRST TIME NAME POPUP */}
-      {/* ================================================= */}
-
+      {/* OPTIONAL NAME POPUP */}
       {showNamePopup && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
-
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-
-            <div className="mb-5 text-center">
-
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-pink-100">
-
-                <svg
-                  className="h-7 w-7 text-pink-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-                  />
-
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4.5 20.25a8.25 8.25 0 0115 0"
-                  />
-                </svg>
-
-              </div>
-
-              <h2 className="text-xl font-bold text-slate-800">
-                Welcome!
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Please enter your name to continue.
-              </p>
-
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-300 text-3xl">
+              👋
             </div>
 
-            <input
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  saveUserName()
-                }
+            <h2 className="text-center text-2xl font-extrabold">
+              Welcome!
+            </h2>
+
+            <p className="mt-2 text-center text-sm text-slate-500">
+              Enter your name if you want to identify who submitted the details.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                saveUserName()
               }}
-              placeholder="Enter your name"
-              autoFocus
-              className="w-full rounded-xl border border-pink-200 px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
-            />
-
-            <button
-              type="button"
-              onClick={saveUserName}
-              disabled={!nameInput.trim()}
-              className="mt-4 w-full rounded-xl bg-pink-500 px-5 py-3 font-semibold text-white shadow-lg transition hover:bg-pink-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-6 space-y-4"
             >
-              Continue
-            </button>
+              <label
+                htmlFor="welcomeName"
+                className="block text-sm font-semibold"
+              >
+                Your Name (Optional)
+              </label>
 
+              <input
+                id="welcomeName"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Enter your name"
+                autoFocus
+                className={inputClass}
+              />
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-yellow-400 px-5 py-3.5 font-bold text-slate-900 shadow-lg shadow-yellow-200 transition hover:bg-yellow-300"
+              >
+                Continue →
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(USER_NAME_KEY, '')
+                  setUserName('')
+                  setShowNamePopup(false)
+                }}
+                className="w-full rounded-xl px-5 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
+              >
+                Skip for now
+              </button>
+            </form>
           </div>
-
         </div>
       )}
 
-
-      {/* ================================================= */}
       {/* PROFILE POPUP */}
-      {/* ================================================= */}
-
       {showProfile && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm"
           onClick={() => setShowProfile(false)}
         >
-
           <div
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
             onClick={(e) => e.stopPropagation()}
           >
-
-            <div className="mb-5 flex items-center justify-between">
-
+            <div className="mb-6 flex items-center justify-between">
               <div>
-
-                <h2 className="text-xl font-bold text-slate-800">
-                  Profile
-                </h2>
-
+                <h2 className="text-xl font-extrabold">Your Profile</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Change your name
+                  Update your display name
                 </p>
-
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowProfile(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                className="rounded-full bg-slate-100 px-3 py-2 hover:bg-slate-200"
+                aria-label="Close profile"
               >
                 ✕
               </button>
-
             </div>
 
-
-            {/* CURRENT NAME */}
-
-            <div className="mb-4 rounded-xl bg-pink-50 p-4">
-
-              <p className="text-xs text-slate-500">
-                Current name
+            <div className="mb-5 rounded-2xl bg-amber-50 p-4">
+              <p className="text-xs text-slate-500">Current name</p>
+              <p className="mt-1 font-bold text-amber-700">
+                {userName || 'Not provided'}
               </p>
-
-              <p className="mt-1 text-lg font-bold text-pink-600">
-                {userName}
-              </p>
-
             </div>
-
-
-            {/* CHANGE NAME */}
-
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Change Name
-            </label>
-
-            <input
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  changeUserName()
-                }
-              }}
-              placeholder="Enter your name"
-              autoFocus
-              className="w-full rounded-xl border border-pink-200 px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
-            />
-
-            <button
-              type="button"
-              onClick={changeUserName}
-              disabled={!nameInput.trim()}
-              className="mt-4 w-full rounded-xl bg-pink-500 px-5 py-3 font-semibold text-white shadow-lg transition hover:bg-pink-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Save Name
-            </button>
-
-
-            {/* COUNT - DISPLAY ONLY */}
-
-            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
-
-              <p className="text-xs text-slate-500">
-                Numbers you have filled
-              </p>
-
-              <p className="mt-1 text-2xl font-bold text-slate-800">
-                {submissionCount}
-              </p>
-
-              <p className="mt-1 text-[11px] text-slate-400">
-                This count is saved on this device.
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-
-
-     {/* ================================================= */}
-{/* SUCCESS POPUP */}
-{/* ================================================= */}
-
-{/* ================================================= */}
-{/* SUCCESS NOTIFICATIONS */}
-{/* ================================================= */}
-
-{showPopup && (
-  <>
-    {/* LEFT NOTIFICATION */}
-    <div className="fixed left-4 top-5 z-[200] w-[calc(100%-32px)] max-w-sm animate-slide-in-left sm:left-6">
-
-      <div className="overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-2xl shadow-pink-200/60">
-
-        <div className="flex items-center gap-3 p-4">
-
-          {/* HAPPY EMOJI */}
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-pink-100">
-            <span className="text-4xl leading-none">
-              😍
-            </span>
-          </div>
-
-          {/* TEXT */}
-          <div className="min-w-0 flex-1">
-
-            <p className="text-base font-extrabold text-slate-800 sm:text-lg">
-              Thanks, {userName}! 🎉
-            </p>
-
-            <p className="mt-0.5 text-[20px] font-medium text-slate-500">
-              You filled
-            </p>
-
-          </div>
-
-          {/* ATTRACTIVE COUNT */}
-          <div className="flex shrink-0 flex-col items-center justify-center">
-
-            <span className="text-4xl font-black leading-none text-pink-600 drop-shadow-sm sm:text-5xl">
-              {submissionCount}
-            </span>
-
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-wide text-pink-400">
-              Numbers
-            </span>
-
-          </div>
-
-         
-
-        </div>
-
-        {/* PROGRESS */}
-        <div className="h-1 bg-pink-100">
-          <div className="h-full w-full animate-shrink bg-gradient-to-r from-pink-400 to-rose-500" />
-        </div>
-
-      </div>
-
-    </div>
-
-
-    {/* RIGHT NOTIFICATION */}
-    <div className="fixed right-4 top-[105px] z-[200] w-[calc(100%-32px)] max-w-sm animate-slide-in-right sm:right-6 sm:top-5">
-
-      <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-2xl shadow-amber-200/60">
-
-        <div className="flex items-center gap-3 p-4">
-
-          {/* ANGRY EMOJI */}
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100">
-            <span className="text-4xl leading-none">
-              😠
-            </span>
-          </div>
-
-          {/* TEXT */}
-          <div className="min-w-0 flex-1">
-
-            <p className="text-base font-extrabold text-slate-800 sm:text-lg">
-              But it's not enough!
-            </p>
-
-            <p className="mt-1 text-sm font-semibold text-amber-600">
-              Fill more numbers
-            </p>
-
-          </div>
-
-         
-
-          
-
-        </div>
-
-        {/* PROGRESS */}
-        <div className="h-1 bg-amber-100">
-          <div className="h-full w-full animate-shrink bg-gradient-to-r from-amber-400 to-orange-500" />
-        </div>
-
-      </div>
-
-    </div>
-  </>
-)}
-
-      {/* ================================================= */}
-      {/* MAIN CONTENT */}
-      {/* ================================================= */}
-
-      <section className="flex min-h-[calc(100vh-80px)] items-start justify-center px-4 py-10">
-
-        <div className="w-full max-w-lg">
-
-          {/* TITLE */}
-
-          <div className="mb-5 text-center">
-
-            <h2 className="text-2xl font-bold text-slate-800">
-              Please Fill HR Number
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Enter the HR contact information below.
-            </p>
-
-          </div>
-
-
-          {/* USER INFO */}
-
-          <div className="mb-4 flex items-center justify-between rounded-2xl border border-pink-100 bg-white px-4 py-3 shadow-sm">
-
-            <div>
-
-              <p className="text-xs text-slate-400">
-                Filling as
-              </p>
-
-              <p className="font-semibold text-pink-600">
-                {userName}
-              </p>
-
-            </div>
-
-            <div className="text-right">
-
-              <p className="text-xs text-slate-400">
-                Numbers filled
-              </p>
-
-              <p className="font-bold text-slate-700">
-                {submissionCount}
-              </p>
-
-            </div>
-
-          </div>
-
-
-          {/* FORM CARD */}
-
-          <div className="overflow-hidden rounded-3xl bg-white shadow-xl shadow-pink-200/40 ring-1 ring-pink-100">
 
             <form
-              onSubmit={handleSubmit}
-              className="space-y-5 p-6 sm:p-7"
+              onSubmit={(e) => {
+                e.preventDefault()
+                changeUserName()
+              }}
             >
+              <label
+                htmlFor="changeName"
+                className="mb-2 block text-sm font-semibold"
+              >
+                Change Name (Optional)
+              </label>
 
-              {/* HR NUMBER */}
-
-              <div>
-
-                <label
-                  htmlFor="number"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  HR Number{' '}
-                  <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  id="number"
-                  name="number"
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  value={form.number}
-                  onChange={handleChange}
-                  placeholder="Enter HR number"
-                  className="input-field border-pink-200 focus:border-pink-500 focus:ring-pink-100"
-                  required
-                />
-
-              </div>
-
-
-              {/* HR NAME */}
-
-              <div>
-
-                <label
-                  htmlFor="hrName"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  HR Name{' '}
-                  <span className="font-normal text-slate-400">
-                    (Optional)
-                  </span>
-                </label>
-
-                <input
-                  id="hrName"
-                  name="hrName"
-                  type="text"
-                  autoComplete="name"
-                  value={form.hrName}
-                  onChange={handleChange}
-                  placeholder="Enter HR name"
-                  className="input-field border-pink-200 focus:border-pink-500 focus:ring-pink-100"
-                />
-
-              </div>
-
-
-              {/* DESCRIPTION */}
-
-              <div>
-
-                <label
-                  htmlFor="description"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
-                  Description{' '}
-                  <span className="font-normal text-slate-400">
-                    (Optional)
-                  </span>
-                </label>
-
-                <textarea
-                  id="description"
-                  name="description"
-                  rows="3"
-                  value={form.description}
-                  onChange={handleChange}
-                  placeholder="Enter description"
-                  className="input-field resize-none border-pink-200 focus:border-pink-500 focus:ring-pink-100"
-                />
-
-              </div>
-
-
-              {/* SUBMIT BUTTON */}
+              <input
+                id="changeName"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Enter your name"
+                className={inputClass}
+              />
 
               <button
                 type="submit"
-                disabled={submitting}
-                className={`relative flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 focus:outline-none focus:ring-4 ${submitting
-                    ? 'scale-[0.98] cursor-wait bg-amber-500 shadow-amber-200 focus:ring-amber-100'
-                    : submitted
-                      ? 'bg-emerald-500 shadow-emerald-200 focus:ring-emerald-100'
-                      : 'bg-pink-500 shadow-pink-200 hover:bg-pink-600 hover:shadow-pink-300 focus:ring-pink-200'
-                  }`}
+                className="mt-4 w-full rounded-xl bg-yellow-400 px-5 py-3 font-bold text-slate-900 transition hover:bg-yellow-300"
               >
-
-                {submitting && (
-                  <>
-                    <svg
-                      className="h-5 w-5 animate-spin"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-30"
-                        cx="12"
-                        cy="12"
-                        r="9"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      />
-
-                      <path
-                        d="M21 12a9 9 0 00-9-9"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-
-                    <span>Loading...</span>
-                  </>
-                )}
-
-                {!submitting && submitted && (
-                  <>
-                    <span>✓</span>
-                    <span>Submitted</span>
-                  </>
-                )}
-
-                {!submitting && !submitted && (
-                  <span>Submit</span>
-                )}
-
+                Save Name
               </button>
-
             </form>
 
+            <div className="mt-5 rounded-2xl border border-amber-100 bg-slate-50 p-4 text-center">
+              <p className="text-sm text-slate-500">
+                Submissions on this device
+              </p>
+              <p className="mt-1 text-3xl font-black text-amber-600">
+                {submissionCount}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                This count is stored locally, not retrieved from Google Sheets.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN CONTENT */}
+      <section className="px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-2xl">
+          {/* PAGE TITLE */}
+          <div className="mb-7 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-700 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-yellow-400" />
+              Creator Management
+            </div>
+
+            <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+              Creator Details
+              <span className="block text-amber-600">
+                Update Form
+              </span>
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500 sm:text-base">
+              Add Instagram creator information to your job search database.
+            </p>
           </div>
 
+          {/* USER SUMMARY */}
+          <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-100">
+                👤
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-xs text-slate-400">Submitting as</p>
+                <p className="truncate font-bold text-slate-800">
+                  {userName || 'Anonymous'}
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <p className="text-xs text-slate-400">Submitted on device</p>
+              <p className="text-xl font-black text-amber-600">
+                {submissionCount}
+              </p>
+            </div>
+          </div>
+
+          {/* FORM CARD */}
+          <div className="overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-xl shadow-amber-100/70">
+            <div className="h-2 bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500" />
+
+            <div className="p-5 sm:p-8">
+              <div className="mb-7 flex items-start gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-300 text-xl shadow-sm">
+                  ✨
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-extrabold">
+                    Creator Information
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    All fields are optional. Fill in any details you have.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* INSTAGRAM LINK */}
+                <div>
+                  <label
+                    htmlFor="instagramLink"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Creator Instagram Link
+                    <span className="ml-2 font-normal text-slate-400">
+                      (Optional)
+                    </span>
+                  </label>
+
+                  <input
+                    id="instagramLink"
+                    name="instagramLink"
+                    type="text"
+                    value={form.instagramLink}
+                    onChange={handleChange}
+                    placeholder="https://www.instagram.com/username/"
+                    autoComplete="off"
+                    className={inputClass}
+                  />
+
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Enter the creator's Instagram profile link if available.
+                  </p>
+                </div>
+
+                {/* USERNAME */}
+                <div>
+                  <label
+                    htmlFor="creatorUsername"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Creator Username
+                    <span className="ml-2 font-normal text-slate-400">
+                      (Optional)
+                    </span>
+                  </label>
+
+                  <div className="flex overflow-hidden rounded-xl border border-amber-200 focus-within:border-amber-500 focus-within:ring-4 focus-within:ring-amber-100">
+                    <span className="flex items-center bg-amber-50 px-4 font-bold text-amber-700">
+                      @
+                    </span>
+
+                    <input
+                      id="creatorUsername"
+                      name="creatorUsername"
+                      type="text"
+                      value={form.creatorUsername}
+                      onChange={handleChange}
+                      placeholder="creator_username"
+                      autoComplete="off"
+                      className="min-w-0 flex-1 bg-white px-4 py-3 text-sm outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* PHONE */}
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Phone Number
+                    <span className="ml-2 font-normal text-slate-400">
+                      (Optional)
+                    </span>
+                  </label>
+
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="text"
+                    inputMode="tel"
+                    autoComplete="off"
+                    value={form.phone}
+                    onChange={handleChange}
+                    placeholder="Enter contact number"
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* DESCRIPTION */}
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Description
+                    <span className="ml-2 font-normal text-slate-400">
+                      (Optional)
+                    </span>
+                  </label>
+
+                  <textarea
+                    id="description"
+                    name="description"
+                    rows={4}
+                    value={form.description}
+                    onChange={handleChange}
+                    placeholder="Add creator details, niche, audience, or notes..."
+                    className={`${inputClass} resize-y`}
+                  />
+                </div>
+
+                {/* STATUS */}
+                {message && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={`rounded-xl border p-3 text-sm ${
+                      messageType === 'success'
+                        ? 'border-amber-200 bg-amber-50 text-amber-900'
+                        : messageType === 'error'
+                          ? 'border-red-200 bg-red-50 text-red-700'
+                          : 'border-slate-200 bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    {message}
+                  </div>
+                )}
+
+                {/* SUBMIT */}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-extrabold shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-amber-100 ${
+                    submitting
+                      ? 'cursor-wait bg-amber-300 text-slate-700'
+                      : 'bg-yellow-400 text-slate-900 shadow-yellow-200 hover:-translate-y-0.5 hover:bg-yellow-300 hover:shadow-xl active:translate-y-0'
+                  }`}
+                >
+                  {submitting ? (
+                    <>
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
+                      Sending Request...
+                    </>
+                  ) : submitted ? (
+                    <>✓ Request Sent</>
+                  ) : (
+                    <>
+                      Save Creator Details <span>→</span>
+                    </>
+                  )}
+                </button>
+
+                <p className="text-center text-xs leading-5 text-slate-400">
+                  Submit any available information. All four fields can be left empty.
+                </p>
+              </form>
+            </div>
+          </div>
 
           {/* FOOTER */}
-
-          <p className="mt-4 text-center text-xs text-slate-400">
-            Your name is saved on this device.
-          </p>
-
+          <footer className="mt-6 text-center">
+            <p className="text-xs text-slate-400">
+              Job Search Creator Details · Creator information management
+            </p>
+          </footer>
         </div>
-
       </section>
-
     </main>
   )
 }
